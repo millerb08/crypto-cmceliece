@@ -1,7 +1,5 @@
 package com.crypto.uninorte.mceliececrypto;
 
-
-
 import java.security.SecureRandom;
 
 /**
@@ -180,6 +178,17 @@ public class GF2mField {
         int result = RandUtils.nextInt(sr, 1 << degree);
         return result;
     }
+    /**
+     * create a random field element using PRNG sr
+     *
+     * @param sr SecureRandom
+     * @return a random element
+     */
+    public int getRandomElement(SecureRandom sr)
+    {
+        int result = RandUtils.nextInt(sr, 1 << degree);
+        return result;
+    }
 
     /**
      * create a random non-zero field element using PRNG sr
@@ -188,6 +197,20 @@ public class GF2mField {
      * @return a random non-zero element
      */
     public int getRandomNonZeroElement() {
+        int controltime = 1 << 20;
+        int count = 0;
+        int result = RandUtils.nextInt(sr, 1 << degree);
+        while ((result == 0) && (count < controltime)) {
+            result = RandUtils.nextInt(sr, 1 << degree);
+            count++;
+        }
+        if (count == controltime) {
+            result = 1;
+        }
+        return result;
+    }
+
+    public int getRandomNonZeroElement(SecureRandom sr) {
         int controltime = 1 << 20;
         int count = 0;
         int result = RandUtils.nextInt(sr, 1 << degree);

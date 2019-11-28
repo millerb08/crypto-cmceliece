@@ -5,7 +5,6 @@ package com.crypto.uninorte.mceliececrypto;
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -250,10 +249,11 @@ public class McElieceKem {
             System.out.println(H[i][mck.n - 1] + "]");
         }
         int r = new Random().nextInt((int) Math.pow(2, mck.n));
-        String s = Integer.toBinaryString(r); //s string random de n bits
-        System.out.println("s = " + s);
+        String S = Integer.toBinaryString(r); //s string random de n bits
+        System.out.println("s = " + S);
+
         System.out.println("Private Key:");//Generacion de llave privada
-        System.out.println("{" + s + "," + Arrays.toString(mck.goppaPoly) + "," + Arrays.toString(mck.L) + "}");
+        System.out.println("{" + S + "," + Arrays.toString(mck.goppaPoly) + "," + Arrays.toString(mck.L) + "}");
 
         r = new Random().nextInt((int) Math.pow(2, mck.n));
         String E = Integer.toBinaryString(r);
@@ -272,6 +272,7 @@ public class McElieceKem {
 
         byte[] two = {2};
         byte[] one = {1};
+        byte[] cero = {0};
 
         byte[] HC1 = concatenateVectors(two, getEByteVector(e));
         byte[] c1 = SHAKE(HC1);
@@ -289,7 +290,7 @@ public class McElieceKem {
             System.out.print(C[i] + " ");
         }
         System.out.println("");
-        System.out.println("C en hexadeciaml: ");
+        System.out.println("C en hexadecimal: ");
 
         Hex hex = new Hex();
         System.out.println(hex.toHexString(C));
@@ -298,11 +299,93 @@ public class McElieceKem {
         for (int i = 0; i < K.length; i++) {
             System.out.print(K[i] + " ");
         }
+
         System.out.println("");
-        System.out.println("K en hexadeciaml: ");
+        System.out.println("K en hexadecimal: ");
         System.out.println(hex.toHexString(K));
         System.out.println("========================");
+        GF2Vector syndVec = new GF2Vector(mck.n);
+        for (int i = 0; i < c0.length; i++) {
+
+            if (c0[i] == 1) {
+                syndVec.setBit(i);
+            }
+        }
+        PolynomialRingGF2m polyRing = new PolynomialRingGF2m(mck.field, mck.goppaFieldPoly);
+        GoppaCode z = new GoppaCode();
+        GF2Vector gf = z.syndromeDecode(syndVec, mck.field, mck.goppaFieldPoly, polyRing.sqRootMatrix);
+        GF2Vector syndr = new GF2Vector(mck.n);
+        String syn = "";
+        syn = syndVec.add(gf).toString();
+        for (int i = 0; i < syndVec.length - 1; i++) {
+            if ("1".equals(syn.substring(i, i + 1))) {
+                syndr.setBit(i);
+            }
+        }
+        if ("1".equals(syn.substring(syndVec.length - 2, syndVec.length - 1))) {
+            syndr.setBit(syndVec.length - 1);
+        }
+        syndVec = syndr;
+        int[] vectorE = new int[syndVec.length];
+        for (int i = 0; i < syndVec.length; i++) {
+            vectorE[i] = syndVec.getBit(i);
+        }
+        System.out.println("Decapsulation");
+        System.out.println("========================");
+        System.out.println("C0");
+
+        for (int i = 0; i < c0.length; i++) {
+            System.out.print(c0[i]);
+        }
+        System.out.println("");
+        System.out.println("C0 GoppaResult");
+        int[] pr = multiply(vectorE, H);
+
+        for (int i = 0; i < pr.length; i++) {
+            System.out.print(pr[i]);
+        }
+
+        System.out.println("");
+        System.out.println("e");
+        for (int i = 0; i < e.length; i++) {
+            System.out.print(e[i]);
+        }
+        System.out.println("");
+        System.out.println("e GoppaResult");
+        for (int i = 0; i < vectorE.length; i++) {
+            System.out.print(vectorE[i]);
+        }
+        System.out.println("");
+        byte[] HC1p = concatenateVectors(two, getEByteVector(vectorE));
+        byte[] c1p = SHAKE(HC1p);
+        byte[] HKp;
+        byte[] Kp;
+
+        boolean c1pc1 = true;
+        for (int i = 0; i < c1p.length; i++) {
+            if (c1p[i] != c1[i]) {
+                c1pc1 = false;
+            }
+        }
+        if (c1pc1) {
+            HKp = concatenateVectors4(one, getEByteVector(vectorE), getEByteVector(c0), c1p);
+            Kp = SHAKE(HKp);
+
+        } else {
+            String[] sDividida = S.split("");
+            int[] s = new int[sDividida.length];
+            for (int i = 0; i < s.length; i++) {
+                s[i] = Integer.parseInt(sDividida[i]);
+            }
+            HKp = concatenateVectors4(cero, getEByteVector(s), getEByteVector(c0), c1);
+            Kp = SHAKE(HKp);
+        }
+        System.out.println("K en hexadecimal: ");
+        System.out.println(hex.toHexString(K));
+        System.out.println("K' en hexadecimal: ");
+        System.out.println(hex.toHexString(Kp));
     }
+
 
     public static String padding(String binStr, int N) {
         String aux = binStr;
@@ -314,7 +397,7 @@ public class McElieceKem {
 
     public static byte[] getEByteVector(int[] e) {
         String bitString = "";
-        //System.out.println(e.length);
+
         for (int i = 0; i < e.length; i++) {
             bitString += "" + e[i];
         }
@@ -351,6 +434,7 @@ public class McElieceKem {
     public static int[] multiply(int[] a, int[][] b) {
         int[] c = new int[b.length];
         // se comprueba si las matrices se pueden multiplicar
+
         if (a.length == b[0].length) {
             for (int i = 0; i < b.length; i++) {
                 for (int j = 0; j < b[0].length; j++) {
